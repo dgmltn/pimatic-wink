@@ -4,6 +4,7 @@ pimatic-wink
 Pimatic plugin to interface with Wink connected devices. Currently supports the following device types:
  1. light_bulb
  2. binary_switch
+ 3. shade
 
 Plugin
 ------
@@ -39,6 +40,11 @@ match exactly as it's seen on the official Wink app.
       "id": "my-switch",
       "class": "WinkBinarySwitch",
       "name": "Outlet"
+    },
+    {
+      "id": "my-shade",
+      "class": "WinkShade",
+      "name": "Curtains"
     },
 
 Bonus: CLI

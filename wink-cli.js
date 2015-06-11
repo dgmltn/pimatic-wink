@@ -28,6 +28,15 @@
 // Turn the light bulb's dim level to 100% (and turn it on):
 // node wink-cli.js light_bulb 100502 100
 
+// Get the position of a shade (0 = closed, 1 = open):
+// node wink-cli.js shade 100603
+
+// Set the position of a shade to closed
+// node wink-cli.js shade 100603 0
+
+// Set the position of a shade to open
+// node wink-cli.js shade 100603 1
+
 var wink = require("./wink-node.js");
 
 var wink_callback = function(err, result) {
@@ -58,6 +67,11 @@ else if (process.argv[2] == 'light_bulb') {
     var device_id = process.argv[3];
     var brightness = process.argv[4];
     wink.light_bulb(device_id, brightness, wink_callback);
+}
+else if (process.argv[2] == 'shade') {
+    var device_id = process.argv[3];
+    var position = process.argv[4];
+    wink.shade(device_id, position, wink_callback);
 }
 else {
     console.error('ERROR: unrecognized command: "' + process.argv[2] + '"');

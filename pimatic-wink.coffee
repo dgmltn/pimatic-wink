@@ -49,6 +49,11 @@ module.exports = (env) ->
         createCallback: (config) => return new WinkLightBulb(config)
       })
 
+      @framework.deviceManager.registerDeviceClass("WinkShade", {
+        configDef: deviceConfigDef.WinkShade, 
+        createCallback: (config) => return new WinkShade(config)
+      })
+
   class WinkBinarySwitch extends env.devices.PowerSwitch
 
     constructor: (@config) ->
@@ -73,6 +78,32 @@ module.exports = (env) ->
       assert state is on or state is off
       return wink_device_id_map()
         .then( (result) => wink_binary_switch(result[@name].device_id, state) )
+        .then( (result) => @_setState(result) )
+
+  class WinkShade extends env.devices.ShutterController
+
+    constructor: (@config) ->
+      @id = config.id
+      @name = config.name
+
+      updateValue = =>
+        if @config.interval > 0
+          @downloadState().finally( =>
+            setTimeout(updateValue, @config.interval) 
+          )
+
+      super()
+      @downloadState()
+
+    downloadState: () ->
+      return wink_device_id_map()
+        .then( (result) => wink_shade(result[@name].device_id, undefined) )
+        .then( (result) => @_setState(result) )
+
+    moveToPosition: (position) ->
+      assert position in ['up', 'down', 'stopped']
+      return wink_device_id_map()
+        .then( (result) => wink_shade(result[@name].device_id, position) )
         .then( (result) => @_setState(result) )
 
   class WinkLightBulb extends env.devices.DimmerActuator

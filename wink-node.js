@@ -237,6 +237,53 @@ Wink.prototype.binary_switch = function(device_id, powered, callback) {
     }
 };
 
+Wink.prototype.shade = function(device_id, position, callback) {
+    var path = '/shades/' + device_id;
+
+    var position_map = {
+        'up': 1,
+        'down': 0
+    };
+    var position_unmap = {
+        1: 'up',
+        0: 'down'
+    };
+
+    var parse_state_callback = function(err, result) {
+        if (callback === undefined) {
+            return;
+        }
+
+        if (err) {
+            callback(err, result);
+            return;
+        }
+
+        var body;
+        try {
+            body = JSON.parse(result.body);
+        }
+        catch(e) {
+            callback(e, result);
+            return;
+        }
+
+        var desired_state = body.data.desired_state;
+        var position = position_unmap[desired_state.position];
+        callback(undefined, position);
+    };
+
+    if (position !== undefined && position_map[position] !== undefined) {
+        var put_body = JSON.stringify({
+            'desired_state': { 'position': position_map[position] }
+        });
+        wink_https('PUT', path, put_body, parse_state_callback);
+    }
+    else {
+        wink_https('GET', path, undefined, parse_state_callback);
+    }
+};
+
 // https://groups.google.com/forum/#!topic/openhab/pmrns4Yb8fM
 // {"data":{"access_token":"267.....094","refresh_token":"b1b.....da8","token_type":"bearer","token_endpoint":"https://winkapi.quirky.com/oauth2/token"},"errors":[],"pagination":{},"access_token":"2670e.....1094","refresh_token":"b1b.....da8","token_type":"bearer","token_endpoint":"https://winkapi.quirky.com/oauth2/token"}
 Wink.prototype.auth_token = function(client_id, client_secret, username, password, callback) {
@@ -300,16 +347,25 @@ Wink.prototype.device_id_map = function(callback) {
                 if (data !== undefined && data.constructor === Array) {
                     for (var i = 0; i < data.length; i++) {
                         var device = data[i];
-                        if (device.name !== undefined && device.light_bulb_id !== undefined) {
+                        if (device.name === undefined) {
+                            // No name, can't identify
+                        }
+                        else if (device.light_bulb_id !== undefined) {
                             devices[device.name] = {
                                 'device_id': device.light_bulb_id,
                                 'device_type': 'light_bulb'
                             };
                         }
-                        else if (device.name !== undefined && device.binary_switch_id !== undefined) {
+                        else if (device.binary_switch_id !== undefined) {
                             devices[device.name] = {
                                 'device_id': device.binary_switch_id,
                                 'device_type': 'binary_switch'
+                            };
+                        }
+                        else if (device.shade_id !== undefined) {
+                            devices[device.name] = {
+                                'device_id': device.shade_id,
+                                'device_type': 'shade'
                             };
                         }
                     }
