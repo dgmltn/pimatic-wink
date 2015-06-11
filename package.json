@@ -1,0 +1,28 @@
+{
+    "name": "pimatic-wink",
+    "description": "The plugin description",
+    "author": "Doug Melton <what@supbro.com> (http://dgmltn.com)",
+    "main": "pimatic-wink",
+    "files": [
+        "pimatic-wink.coffee",
+        "README.md",
+        "pimatic-wink-config-schema.coffee",
+        "device-config-schema.coffee"
+    ],
+    "version": "0.0.1",
+    "homepage": "http://dgmltn.com/pimatic-wink",
+    "private": true,
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/dgmltn/pimatic-wink.git"
+    },
+    "configSchema": "pimatic-wink-config-schema.coffee",
+    "dependencies": { },
+    "peerDependencies": {
+        "pimatic": "0.8.*"
+    },
+    "engines": {
+        "node": ">0.8.x",
+        "npm": ">1.1.x"
+    }
+}
