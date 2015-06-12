@@ -17,6 +17,7 @@ module.exports = (env) ->
   wink_device_id_map = Promise.promisify(wink.device_id_map);
   wink_binary_switch = Promise.promisify(wink.binary_switch);
   wink_light_bulb = Promise.promisify(wink.light_bulb);
+  wink_shade = Promise.promisify(wink.shade);
 
   class PimaticWink extends env.plugins.Plugin
 
@@ -98,13 +99,13 @@ module.exports = (env) ->
     downloadState: () ->
       return wink_device_id_map()
         .then( (result) => wink_shade(result[@name].device_id, undefined) )
-        .then( (result) => @_setState(result) )
+        .then( (result) => @_setPosition(result) )
 
     moveToPosition: (position) ->
       assert position in ['up', 'down', 'stopped']
       return wink_device_id_map()
         .then( (result) => wink_shade(result[@name].device_id, position) )
-        .then( (result) => @_setState(result) )
+        .then( (result) => @_setPosition(result) )
 
   class WinkLightBulb extends env.devices.DimmerActuator
 

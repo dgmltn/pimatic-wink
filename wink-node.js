@@ -23,11 +23,11 @@ var read_auth_token = function(callback) {
     var path = require('path').resolve(__dirname, 'WINK_AUTH_TOKEN');
     fs.readFile(path, function (err, token) {
         if (err) {
-            if (e.code === 'ENOENT') {
+            if (err.code === 'ENOENT') {
                 callback('NO_AUTH_TOKEN', undefined);
             }
             else {
-                callback(e, undefined);
+                callback(err, undefined);
             }
         }
         else {
@@ -270,6 +270,9 @@ Wink.prototype.shade = function(device_id, position, callback) {
 
         var desired_state = body.data.desired_state;
         var position = position_unmap[desired_state.position];
+        if (position === undefined) {
+            position = 'stopped';
+        }
         callback(undefined, position);
     };
 
