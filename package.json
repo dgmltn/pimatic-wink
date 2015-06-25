@@ -1,17 +1,19 @@
 {
     "name": "pimatic-wink",
-    "description": "The plugin description",
+    "description": "Pimatic plugin to interface with Wink connected devices",
     "author": "Doug Melton <what@supbro.com> (http://dgmltn.com)",
     "main": "pimatic-wink",
     "files": [
-        "pimatic-wink.coffee",
         "README.md",
-        "pimatic-wink-config-schema.coffee",
-        "device-config-schema.coffee"
+        "wink-cli.js",
+        "wink-node.js",
+        "pimatic-wink.coffee",
+        "device-config-schema.coffee",
+        "pimatic-wink-config-schema.coffee"
     ],
-    "version": "0.0.1",
-    "homepage": "http://dgmltn.com/pimatic-wink",
-    "private": true,
+    "version": "1.0.0",
+    "homepage": "http://github.com/dgmltn/pimatic-wink",
+    "private": false,
     "repository": {
         "type": "git",
         "url": "git://github.com/dgmltn/pimatic-wink.git"
