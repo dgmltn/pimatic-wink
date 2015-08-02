@@ -1,4 +1,4 @@
-# #Shell device configuration options
+# # device configuration options
 module.exports = {
   title: "pimatic-wink device config schemas"
   WinkBinarySwitch: {
