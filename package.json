@@ -3,6 +3,7 @@
     "description": "Pimatic plugin to interface with Wink connected devices",
     "author": "Doug Melton <what@supbro.com> (http://dgmltn.com)",
     "main": "pimatic-wink",
+    "license": "Apache-2.0",
     "files": [
         "README.md",
         "wink-cli.js",
@@ -21,7 +22,7 @@
     "configSchema": "pimatic-wink-config-schema.coffee",
     "dependencies": { },
     "peerDependencies": {
-        "pimatic": "0.8.*"
+        "pimatic": ">=0.8.0 <1.0.0"
     },
     "engines": {
         "node": ">0.8.x",
