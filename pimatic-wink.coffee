@@ -33,9 +33,9 @@ module.exports = (env) ->
     # 
     init: (app, @framework, @config) =>
       ##env.logger.info("Hello World")
-      ##env.logger.info(JSON.stringify(config))
+      ##env.logger.info(JSON.stringify(@config))
 
-      #TODO uncomment wink_auth_token(config.client_id, config.client_secret, config.username, config.password)
+      #TODO uncomment wink_auth_token(@config.client_id, @config.client_secret, @config.username, @config.password)
       #TODO uncomment  .then (response) -> env.logger.info(response)
 
       deviceConfigDef = require("./device-config-schema")
@@ -58,17 +58,21 @@ module.exports = (env) ->
   class WinkBinarySwitch extends env.devices.PowerSwitch
 
     constructor: (@config) ->
-      @id = config.id
-      @name = config.name
+      @id = @config.id
+      @name = @config.name
 
       updateValue = =>
         if @config.interval > 0
           @downloadState().finally( =>
-            setTimeout(updateValue, @config.interval) 
+            @timerId = setTimeout(updateValue, @config.interval)
           )
 
       super()
       @downloadState()
+
+    destroy: () ->
+      clearTimeout @timerId if @timerId?
+      super()
 
     downloadState: () ->
       return wink_device_id_map()
@@ -84,17 +88,21 @@ module.exports = (env) ->
   class WinkShade extends env.devices.ShutterController
 
     constructor: (@config) ->
-      @id = config.id
-      @name = config.name
+      @id = @config.id
+      @name = @config.name
 
       updateValue = =>
         if @config.interval > 0
           @downloadState().finally( =>
-            setTimeout(updateValue, @config.interval) 
+            @timerId = setTimeout(updateValue, @config.interval)
           )
 
       super()
       @downloadState()
+
+    destroy: () ->
+      clearTimeout @timerId if @timerId?
+      super()
 
     downloadState: () ->
       return wink_device_id_map()
@@ -110,17 +118,21 @@ module.exports = (env) ->
   class WinkLightBulb extends env.devices.DimmerActuator
 
     constructor: (@config) ->
-      @id = config.id
-      @name = config.name
+      @id = @config.id
+      @name = @config.name
 
       updateValue = =>
         if @config.interval > 0
           @downloadState().finally( =>
-            setTimeout(updateValue, @config.interval) 
+            @timerId = setTimeout(updateValue, @config.interval)
           )
 
       super()
       @downloadState()
+
+    destroy: () ->
+      clearTimeout @timerId if @timerId?
+      super()
 
     downloadState: () ->
       env.logger.info("downloadState")
@@ -133,7 +145,7 @@ module.exports = (env) ->
       assert not isNaN(dimlevel)
       assert dimlevel >= 0
       assert dimlevel <= 100
-      if @_dimlevel is dimlevel then return
+      if @_dimlevel is dimlevel then return Promise.resolve()
       return wink_device_id_map()
         .then( (result) => wink_light_bulb(result[@name].device_id, dimlevel) )
         .then( (result) => @_setDimlevel(dimlevel) )
