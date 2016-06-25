@@ -12,7 +12,7 @@
         "device-config-schema.coffee",
         "pimatic-wink-config-schema.coffee"
     ],
-    "version": "1.0.1",
+    "version": "1.1.0",
     "homepage": "http://github.com/dgmltn/pimatic-wink",
     "private": false,
     "repository": {
@@ -22,7 +22,7 @@
     "configSchema": "pimatic-wink-config-schema.coffee",
     "dependencies": { },
     "peerDependencies": {
-        "pimatic": ">=0.8.0 <1.0.0"
+        "pimatic": ">=0.9.0 <1.0.0"
     },
     "engines": {
         "node": ">0.8.x",

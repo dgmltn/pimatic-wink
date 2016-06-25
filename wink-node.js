@@ -4,94 +4,13 @@ var https = require('https');
 // https://nodejs.org/api/fs.html
 var fs = require('fs');
 
-////////////////////////////////////////////////////////////////////////////////
-// Auth Token
-////////////////////////////////////////////////////////////////////////////////
-
-var cached_auth_token;
-
-var read_auth_token = function(callback) {
-    if (callback === undefined) {
-        return;
-    }
-
-    if (cached_auth_token) {
-        callback(undefined, cached_auth_token);
-        return;
-    }
-
-    var path = require('path').resolve(__dirname, 'WINK_AUTH_TOKEN');
-    fs.readFile(path, function (err, token) {
-        if (err) {
-            if (err.code === 'ENOENT') {
-                callback('NO_AUTH_TOKEN', undefined);
-            }
-            else {
-                callback(err, undefined);
-            }
-        }
-        else {
-            cached_auth_token = token;
-            callback(undefined, token);
-        }
-    });
-};
-
-var write_auth_token = function(token, callback) {
-    var path = require('path').resolve(__dirname, 'WINK_AUTH_TOKEN');
-    fs.writeFile(path, token, function (err) {
-        if (err) {
-            callback(err);
-            return;
-        }
-        if (callback !== undefined) {
-            cached_auth_token = token;
-            callback();
-        }
-    });
-};
-
-////////////////////////////////////////////////////////////////////////////////
-// Device Map
-////////////////////////////////////////////////////////////////////////////////
-
-var read_device_map = function(callback) {
-    if (callback === undefined) {
-        return;
-    }
-
-    var path = require('path').resolve(__dirname, 'WINK_DEVICE_MAP');
-    fs.readFile(path, 'utf8', function(err, data) {
-        if (err && err.code === 'ENOENT') {
-            callback('NOT_FOUND', undefined);
-            return;
-        }
-        else if (err) {
-            callback(err, undefined);
-            return;
-        }
-        callback(undefined, data);
-    });
-};
-
-var write_device_map = function(data, callback) {
-    var path = require('path').resolve(__dirname, 'WINK_DEVICE_MAP');
-    fs.writeFile(path, data, function (err) {
-        if (err) {
-            callback(err);
-            return;
-        }
-        if (callback !== undefined) {
-            callback();
-        }
-    });
-};
+var env
 
 ////////////////////////////////////////////////////////////////////////////////
 // HTTPS
 ////////////////////////////////////////////////////////////////////////////////
 
-var wink_https = function(method, path, put_body, callback) {
+var wink_https = function(auth_token, method, path, put_body, callback) {
     var options = {
         host: 'winkapi.quirky.com',
         path: path,
@@ -138,14 +57,11 @@ var wink_https = function(method, path, put_body, callback) {
 
     // Special case for when we're specifically trying to get the auth token
     if (path !== '/oauth2/token') {
-        read_auth_token(function(err, token) {
-            if (token) {
-                options.headers['Authorization'] = 'Bearer ' + token;
-            }
-            the_request(callback);
-        });
+        options.headers['Authorization'] = 'Bearer ' + auth_token;
+        the_request(callback);
     }
     else {
+        env.logger.info(">>>>>", "Fetching new Auth Token");
         the_request(callback);
     }
 };
@@ -156,10 +72,14 @@ var wink_https = function(method, path, put_body, callback) {
 
 var Wink = function() {};
 
-// let's use brightness = [0, 100]
-Wink.prototype.light_bulb = function(device_id, brightness, callback) {
-    var path = '/light_bulbs/' + device_id;
+Wink.prototype.init = function(_env) {
+    env = _env;
+};
 
+// let's use brightness = [0, 100]
+Wink.prototype.light_bulb = function(auth_token, device_id, brightness, callback) {
+    var path = '/light_bulbs/' + device_id;
+    env.logger.debug(">>>>Sending to Wink light_bulb: ", brightness);
     var parse_state_callback = function(err, result) {
         if (callback === undefined) {
             return;
@@ -190,18 +110,27 @@ Wink.prototype.light_bulb = function(device_id, brightness, callback) {
         var put_body = JSON.stringify({
             'desired_state': { 'powered': brightness != 0, 'brightness': (brightness / 100) }
         });
-        wink_https('PUT', path, put_body, parse_state_callback);
+        wink_https(auth_token, 'PUT', path, put_body, parse_state_callback);
     }
 
     // No argument => get the light bulb's state
     else {
-        wink_https('GET', path, undefined, parse_state_callback);
+        wink_https(auth_token, 'GET', path, undefined, parse_state_callback);
     }   
 };
 
-Wink.prototype.binary_switch = function(device_id, powered, callback) {
+Wink.prototype.binary_switch = function(auth_token, device_id, powered, callback) {
     var path = '/binary_switches/' + device_id;
+    return (wink_switch(auth_token, path,device_id, powered, callback));
+};
 
+Wink.prototype.light_switch = function(auth_token, device_id, powered, callback) {
+    var path = '/light_bulbs/' + device_id;
+    return (wink_switch(auth_token, path,device_id, powered, callback));
+};
+
+var wink_switch = function(auth_token, path, device_id, powered, callback) {
+    env.logger.debug(">>>>Sending to Wink wink_switch: ",powered);
     var parse_state_callback = function(err, result) {
         if (callback === undefined) {
             return;
@@ -230,16 +159,16 @@ Wink.prototype.binary_switch = function(device_id, powered, callback) {
         var put_body = JSON.stringify({
             'desired_state': { 'powered': !!powered }
         });
-        wink_https('PUT', path, put_body, parse_state_callback);
+        wink_https(auth_token, 'PUT', path, put_body, parse_state_callback);
     }
     else {
-        wink_https('GET', path, undefined, parse_state_callback);
+        wink_https(auth_token, 'GET', path, undefined, parse_state_callback);
     }
 };
 
-Wink.prototype.shade = function(device_id, position, callback) {
+Wink.prototype.shade = function(auth_token, device_id, position, callback) {
     var path = '/shades/' + device_id;
-
+    env.logger.debug(">>>>Sending to Wink shade: ",position);
     var position_map = {
         'up': 1,
         'down': 0
@@ -280,10 +209,10 @@ Wink.prototype.shade = function(device_id, position, callback) {
         var put_body = JSON.stringify({
             'desired_state': { 'position': position_map[position] }
         });
-        wink_https('PUT', path, put_body, parse_state_callback);
+        wink_https(auth_token, 'PUT', path, put_body, parse_state_callback);
     }
     else {
-        wink_https('GET', path, undefined, parse_state_callback);
+        wink_https(auth_token, 'GET', path, undefined, parse_state_callback);
     }
 };
 
@@ -300,7 +229,7 @@ Wink.prototype.auth_token = function(client_id, client_secret, username, passwor
         'grant_type': 'password',
     });
 
-    wink_https('POST', path, put_body, function(err, result) {
+    wink_https(undefined, 'POST', path, put_body, function(err, result) {
         if (callback === undefined) {
             return;
         }
@@ -320,80 +249,34 @@ Wink.prototype.auth_token = function(client_id, client_secret, username, passwor
         }
 
         var access_token = body.data.access_token;
-        write_auth_token(access_token, function(err) {
-            callback(undefined, access_token);
-        });
+        env.logger.info(">>>> Got new Auth token " + access_token );
+        callback(undefined, access_token);
     });
+   
+       
 };
 
-Wink.prototype.device_id_map = function(callback) {
-
-    read_device_map(function(err, data) {
-        if (err === 'NOT_FOUND' || err === undefined && data === undefined) {
-            wink_https('GET', '/users/me/wink_devices', undefined, function(err, result) {
-                if (err) {
-                    callback(err, result);
-                    return;
-                }
-
-                var body;
-                try {
-                    body = JSON.parse(result.body);
-                }
-                catch(e) {
-                    callback(e, result);
-                    return;
-                }
-
-                var devices = {};
-                var data = body.data;
-                if (data !== undefined && data.constructor === Array) {
-                    for (var i = 0; i < data.length; i++) {
-                        var device = data[i];
-                        if (device.name === undefined) {
-                            // No name, can't identify
-                        }
-                        else if (device.light_bulb_id !== undefined) {
-                            devices[device.name] = {
-                                'device_id': device.light_bulb_id,
-                                'device_type': 'light_bulb'
-                            };
-                        }
-                        else if (device.binary_switch_id !== undefined) {
-                            devices[device.name] = {
-                                'device_id': device.binary_switch_id,
-                                'device_type': 'binary_switch'
-                            };
-                        }
-                        else if (device.shade_id !== undefined) {
-                            devices[device.name] = {
-                                'device_id': device.shade_id,
-                                'device_type': 'shade'
-                            };
-                        }
-                    }
-                }
-
-                write_device_map(JSON.stringify(devices), function(err) {
-                    callback(err, devices);
-                });
-            });
-        }
-        else if (err) {
-            callback(err, undefined);
+Wink.prototype.device_id_map = function(auth_token, callback) {
+    wink_https(auth_token, 'GET', '/users/me/wink_devices', undefined, function(err, result) {
+        if (err) {
+            callback(err, result);
             return;
         }
-        else {
-            try {
-                callback(undefined, JSON.parse(data));
-            }
-            catch(e) {
-                callback(e, undefined);
-            }
-        }
-    });
 
+        var body;
+        try {
+            body = JSON.parse(result.body);
+        }
+        catch(e) {
+            callback(e, result);
+            return;
+        }
+
+        var data = body.data;
+        env.logger.debug(">>>>Device List: ", JSON.stringify(data))
+        callback(undefined, data);
+    });
 };
 
-module.exports = new Wink();
+module.exports = new Wink(env);
 
