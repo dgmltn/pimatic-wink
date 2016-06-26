@@ -24,7 +24,7 @@ module.exports = (env) ->
   wink_shade = Promise.promisify(wink.shade);
 
   class PimaticWink extends env.plugins.Plugin
-   
+
     # ####init()
     # The `init` function is called by the framework to ask your plugin to initialise.
     #  
@@ -38,7 +38,6 @@ module.exports = (env) ->
 
     init: (app, @framework, @config) =>
       env.logger.info("Starting...")
-      wink.init(env)
       @pendingAuth = new Promise( (resolve, reject) =>
         if @config.auth_token? and !!@config.auth_token   
           env.logger.debug("Have Auth token:" + @config.auth_token + ":")
@@ -92,34 +91,35 @@ module.exports = (env) ->
 
     winkOnDiscover : (data) ->
       #if (data !== undefined && data.constructor === Array) {
-      for device in data
-        if device.name? and !!device.name
-          @device_name = device.name
-          env.logger.debug(@device_name)
-          @subscribe_key = device.subscription.pubnub.subscribe_key
-          @channel = device.subscription.pubnub.channel
+      if data?
+        for device in data
+          if device.name? and !!device.name
+            @device_name = device.name
+            env.logger.debug(@device_name)
+            @subscribe_key = device.subscription.pubnub.subscribe_key
+            @channel = device.subscription.pubnub.channel
 
-          if device.light_bulb_id? and !!device.light_bulb_id 
-            @device_id = device.light_bulb_id
-            @device_type = 'light_bulb'
-            @class_name = "WinkLightBulb"
-            @tellframework(@device_id, @device_name, @device_type, @class_name, @subscribe_key, @channel)
+            if device.light_bulb_id? and !!device.light_bulb_id 
+              @device_id = device.light_bulb_id
+              @device_type = 'light_bulb'
+              @class_name = "WinkLightBulb"
+              @tellframework(@device_id, @device_name, @device_type, @class_name, @subscribe_key, @channel)
 
-          else if device.binary_switch_id? and !!device.binary_switch_id  
-            @device_id = device.binary_switch_id
-            @device_type = 'binary_switch'
-            @class_name = "WinkBinarySwitch"
-            @tellframework(@device_id, @device_name, @device_type, @class_name, @subscribe_key, @channel)
+            else if device.binary_switch_id? and !!device.binary_switch_id  
+              @device_id = device.binary_switch_id
+              @device_type = 'binary_switch'
+              @class_name = "WinkBinarySwitch"
+              @tellframework(@device_id, @device_name, @device_type, @class_name, @subscribe_key, @channel)
 
-          else if device.shade_id? and !!device.shade_id 
-            @device_id = device.shade_id
-            @device_type = 'shade'
-            @class_name = "WinkShade"
-            @tellframework(@device_id, @device_name, @device_type, @class_name, @subscribe_key, @channel)
+            else if device.shade_id? and !!device.shade_id 
+              @device_id = device.shade_id
+              @device_type = 'shade'
+              @class_name = "WinkShade"
+              @tellframework(@device_id, @device_name, @device_type, @class_name, @subscribe_key, @channel)
 
-        else
-          # No name, can't identify
-          env.logger.debug ("Discovery: undefined device")     
+          else
+            # No name, can't identify
+            env.logger.debug ("Discovery: undefined device")     
 
     tellframework : (device_id, device_name, device_type, class_name, subscribe_key, channel) ->
         config = {
@@ -135,6 +135,7 @@ module.exports = (env) ->
         )
     
   class WinkBinarySwitch extends env.devices.PowerSwitch
+    @_wink_state
 
     constructor: (@config) ->
       @id = @config.id
@@ -152,23 +153,26 @@ module.exports = (env) ->
       super()
       @initialize()
 
-
     destroy: () ->
         clearTimeout @timerId if @timerId?
-        if @intervalTimerID?
-          clearInterval @intervalTimerID
         super()
   
     downloadState: () ->
       return wink_binary_switch(plugin.config.auth_token, @device_id, undefined) 
         .then( (result) => 
-          @_setState(result) )
+          @_wink_state = result.powered
+          @_setState(@_wink_state) )
+        .catch( (err) =>
+            env.logger.error("Error getting status from Wink ", err))
 
     changeStateTo: (state) ->
       assert state is on or state is off
       if @_state is state then return Promise.resolve()
+      if @_wink_state is state then return Promise.resolve()
       return wink_binary_switch(plugin.config.auth_token, @device_id, state)
-        .then( (result) => @_setState(result) )
+        .then( (result) => 
+          @_wink_state = result.powered
+          @_setState(@_wink_state) )
 
     initialize: ()->
       plugin.pendingAuth.then( (auth_token) =>
@@ -185,18 +189,14 @@ module.exports = (env) ->
       )      
 
     pncallback: (result) ->
-      try
         @body = JSON.parse(result)
         @desired_state = @body.desired_state
         @powered = @desired_state.powered
 
         if @powered?
+          @_wink_state =  @powered
           env.logger.debug(@name + " Wink Status >> " + @powered)
-          @_setState(@powered)
-
-      catch error
-         env.logger.debug(error)
-      finally
+          @_setState(@_wink_state)
 
   class WinkShade extends env.devices.ShutterController
 
@@ -223,11 +223,15 @@ module.exports = (env) ->
     downloadState: () ->
       return wink_shade(plugin.config.auth_token, @device_id, undefined) 
         .then( (result) => @_setPosition(result) )
+        .catch( (err) =>
+            env.logger.error("Error getting status from Wink ", err))
 
     moveToPosition: (position) ->
       assert position in ['up', 'down', 'stopped']
       return wink_shade(plugin.config.auth_token, @device_id, position) 
         .then( (result) => @_setPosition(result) )
+        .catch( (err) =>
+            env.logger.error("Error getting status from Wink ", err))
 
     initialize: ()->
       plugin.pendingAuth.then( (auth_token) =>
@@ -248,22 +252,18 @@ module.exports = (env) ->
         1: 'up',
         0: 'down'
 
-      try
-        @body = JSON.parse(result)
-        @desired_state = @body.desired_state
-        @position = position_unmap[@desired_state.position]
+      @body = JSON.parse(result)
+      @desired_state = @body.desired_state
+      @position = position_unmap[@desired_state.position]
 
-        if @powered?
-          @_setPosition(@position)
-        else
-          @position = 'stopped'
-
-      catch error
-         env.logger.debug(error)
-      finally
-
+      if @powered?
+        @_setPosition(@position)
+      else
+        @position = 'stopped'
 
   class WinkLightBulb extends env.devices.DimmerActuator
+    @_wink_state
+    @_wink_level
 
     constructor: (@config) ->
       @id = @config.id
@@ -287,37 +287,51 @@ module.exports = (env) ->
   
     # Returns a promise
     turnOn: -> 
-      if plugin.config.wink_dim_level
-        @changeStateTo on
-      else
-        @_setDimlevel(100)
+      env.logger.debug("turnOn")
+      @changeStateTo on 
 
     # Retuns a promise
-    turnOff: -> @changeStateTo off
+    turnOff: -> 
+      env.logger.debug("turnOff")
+      @changeDimlevelTo 0 
 
     downloadState: () ->
       return wink_light_bulb(plugin.config.auth_token, @device_id, undefined) 
-        .then( (result) => @_setDimlevel(result) )
-        .then( (result) =>
-          if plugin.config.wink_dim_level
-            @_setState(result) 
-        )
+         .then( (result) => 
+          env.logger.debug("downloadState "+@name +  " state:"  + @_state + " dimlevel:"+ @_dimlevel)
+          env.logger.debug(result)
+          @syncpimatic2wink(result)) 
+        .catch( (err) =>
+          env.logger.error("Error getting status from Wink ", err)) 
 
     changeStateTo: (state) ->
+      env.logger.debug("changeStateTo "+ @name + " From:" + @_state + " to:"+state)
       assert state is on or state is off
-      if @_state is state then return Promise.resolve()
+      return Promise.resolve() if state is @_wink_state 
+
       return wink_light_switch(plugin.config.auth_token, @device_id, state) 
-        .then( (result) => @_setState(result) )
 
     changeDimlevelTo: (dimlevel) ->
+      env.logger.debug("changeDimlevelTo "+ @name + " From:" +  @_dimlevel + " to:"+dimlevel)
       dimlevel = parseFloat(dimlevel)
-      state = dimlevel > 0.0 ? on : off
       assert not isNaN(dimlevel)
       assert dimlevel >= 0
       assert dimlevel <= 100
-      if @_dimlevel is dimlevel then return Promise.resolve()
+      return Promise.resolve() if dimlevel is @_dimlevel
+      return Promise.resolve() if dimlevel is @_wink_level
+
       return wink_light_bulb(plugin.config.auth_token, @device_id, dimlevel) 
-        .then( (result) => @_setDimlevel(dimlevel) )
+
+    _setDimlevel: (level) =>
+      env.logger.debug("_setDimlevel "+@name)
+      level = parseFloat(level)
+      assert(not isNaN(level))
+      assert level >= 0
+      assert level <= 100
+      if @_dimlevel is level then return
+      @_dimlevel = level
+      @emit "dimlevel", level
+      @_setState(level > 0)
 
     initialize: ()->
       plugin.pendingAuth.then( (auth_token) =>
@@ -330,32 +344,33 @@ module.exports = (env) ->
 
         pubnub = PUBNUB(@subdata) 
         pubnub.subscribe(@channeldata, @pncallback.bind(this))
+        env.logger.debug("INTIALIZE "+@name +  " state:"  + @_state + " dimlevel:"+ @_dimlevel)
         @downloadState()
       )  
 
     pncallback: (result) ->
-      try
-        @body = JSON.parse(result)
-        @desired_state = @body.desired_state
+      env.logger.debug("CALLBACK "+@name +  " @state:"  + @_state + " dimlevel:"+ @_dimlevel)
+      @body = JSON.parse(result)
+      @desired_state = @body.desired_state
+      @syncpimatic2wink(@desired_state)
 
-        if @desired_state.powered?
-          @powered = @desired_state.powered
-          env.logger.debug(@name + " Wink Status >> " + @powered)
-          @_setState(@powered)
+    syncpimatic2wink: (desired_state) ->
+      env.logger.debug("syncpimatic2wink " + desired_state)
 
-        if @desired_state.brightness? and not isNaN(@desired_state.brightness)
-          if plugin.config.wink_dim_level or @powered
-            @dimlevel = @desired_state.brightness * 100
-          else 
-            @dimlevel = 0
-          env.logger.debug(@name + " Wink Dim Level >> " + @dimlevel)
-          @_setDimlevel(@dimlevel)
+      if desired_state.powered?
+        @_wink_state = desired_state.powered
+        env.logger.debug(@name + " Wink Status >> " + @_wink_state)
 
-      catch error
-         env.logger.debug(error)
-      finally
+      if desired_state.brightness? and not isNaN(desired_state.brightness)
+        @_wink_level = desired_state.brightness * 100
+        @dimlevel = @_wink_level
+        @dimlevel = 0 if not @_wink_state
+        env.logger.debug(@name + " Wink Dim Level >> " + @_wink_level)
+        @_setDimlevel(@dimlevel)
 
   class WinkLightSwitch extends env.devices.PowerSwitch
+    @_wink_state
+
     constructor: (@config) ->
       @id = @config.id
       @name = @config.name
@@ -378,13 +393,20 @@ module.exports = (env) ->
   
     downloadState: () ->
       return wink_light_switch(plugin.config.auth_token, @device_id, undefined) 
-        .then( (result) => @_setState(result) )
+        .then( (result) => 
+          @_wink_state = result.powered
+          @_setState(@_wink_state) )
+        .catch( (err) =>
+            env.logger.error("Error getting status from Wink ", err))
 
     changeStateTo: (state) ->
       assert state is on or state is off
       if @_state is state then return Promise.resolve()
-      return wink_light_switch(plugin.config.auth_token, @device_id, state) 
-        .then( (result) => @_setState(result) )
+      if @_wink_state is state then return Promise.resolve()
+      return wink_light_switch(plugin.config.auth_token, @device_id, state)
+        .then( (result) => 
+          @_wink_state = result.powered
+          @_setState(@_wink_state) )
 
     initialize: ()->
       plugin.pendingAuth.then( (auth_token) =>
@@ -398,20 +420,17 @@ module.exports = (env) ->
         pubnub = PUBNUB(@subdata) 
         pubnub.subscribe(@channeldata, @pncallback.bind(this))
         @downloadState()
-      )  
+      )      
 
     pncallback: (result) ->
-      try
         @body = JSON.parse(result)
         @desired_state = @body.desired_state
         @powered = @desired_state.powered
 
         if @powered?
-          env.logger.debug(@name + " Wink Status >> ", @powered )
-          @_setState(@powered)
-      catch error
-         env.logger.debug(error)
-      finally
+          @_wink_state =  @powered
+          env.logger.debug(@name + " Wink Status >> " + @powered)
+          @_setState(@_wink_state)
 
   # ###Finally
   # Create a instance of my plugin

@@ -4,8 +4,6 @@ var https = require('https');
 // https://nodejs.org/api/fs.html
 var fs = require('fs');
 
-var env
-
 ////////////////////////////////////////////////////////////////////////////////
 // HTTPS
 ////////////////////////////////////////////////////////////////////////////////
@@ -61,7 +59,7 @@ var wink_https = function(auth_token, method, path, put_body, callback) {
         the_request(callback);
     }
     else {
-        env.logger.info(">>>>>", "Fetching new Auth Token");
+        //console.log(">>>>>", "Fetching new Auth Token");
         the_request(callback);
     }
 };
@@ -72,14 +70,10 @@ var wink_https = function(auth_token, method, path, put_body, callback) {
 
 var Wink = function() {};
 
-Wink.prototype.init = function(_env) {
-    env = _env;
-};
-
 // let's use brightness = [0, 100]
 Wink.prototype.light_bulb = function(auth_token, device_id, brightness, callback) {
     var path = '/light_bulbs/' + device_id;
-    env.logger.debug(">>>>Sending to Wink light_bulb: ", brightness);
+    //console.log(">>>>Sending to Wink light_bulb: ", brightness);
     var parse_state_callback = function(err, result) {
         if (callback === undefined) {
             return;
@@ -100,9 +94,7 @@ Wink.prototype.light_bulb = function(auth_token, device_id, brightness, callback
         }
 
         var desired_state = body.data.desired_state;
-        var powered = desired_state.powered;
-        var brightness = desired_state.brightness;
-        callback(undefined, powered ? brightness * 100 : 0);
+        callback(undefined, desired_state);
     };
 
     // brightness argument => set the light bulb's state / brightness
@@ -130,7 +122,7 @@ Wink.prototype.light_switch = function(auth_token, device_id, powered, callback)
 };
 
 var wink_switch = function(auth_token, path, device_id, powered, callback) {
-    env.logger.debug(">>>>Sending to Wink wink_switch: ",powered);
+    //console.log(">>>>Sending to Wink wink_switch: ",powered);
     var parse_state_callback = function(err, result) {
         if (callback === undefined) {
             return;
@@ -151,8 +143,7 @@ var wink_switch = function(auth_token, path, device_id, powered, callback) {
         }
 
         var desired_state = body.data.desired_state;
-        var powered = desired_state.powered;
-        callback(undefined, powered ? true : false);
+        callback(undefined, desired_state);
     };
 
     if (powered !== undefined) {
@@ -168,7 +159,7 @@ var wink_switch = function(auth_token, path, device_id, powered, callback) {
 
 Wink.prototype.shade = function(auth_token, device_id, position, callback) {
     var path = '/shades/' + device_id;
-    env.logger.debug(">>>>Sending to Wink shade: ",position);
+    //log.console(">>>>Sending to Wink shade: ",position);
     var position_map = {
         'up': 1,
         'down': 0
@@ -249,7 +240,7 @@ Wink.prototype.auth_token = function(client_id, client_secret, username, passwor
         }
 
         var access_token = body.data.access_token;
-        env.logger.info(">>>> Got new Auth token " + access_token );
+        console.log(">>>> Got new Auth token " + access_token );
         callback(undefined, access_token);
     });
    
@@ -273,10 +264,10 @@ Wink.prototype.device_id_map = function(auth_token, callback) {
         }
 
         var data = body.data;
-        env.logger.debug(">>>>Device List: ", JSON.stringify(data))
+        //console.log(">>>>Device List: ", JSON.stringify(data))
         callback(undefined, data);
     });
 };
 
-module.exports = new Wink(env);
+module.exports = new Wink();
 
