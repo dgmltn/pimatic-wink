@@ -8,11 +8,7 @@ module.exports = {
       device_id:
         description: "Device id retrieved using Wink API"
         type: "string"
-        required: true    
-      device_type:
-        description: "Device type retrieved using Wink API"
-        type: "string"
-        required: true    
+        required: true        
       pubnub_channel:
         description: "Pubnub channel retrieved using Wink API"
         type: "string"

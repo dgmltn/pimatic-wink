@@ -101,31 +101,27 @@ module.exports = (env) ->
 
             if device.light_bulb_id? and !!device.light_bulb_id 
               @device_id = device.light_bulb_id
-              @device_type = 'light_bulb'
               @class_name = "WinkLightBulb"
-              @tellframework(@device_id, @device_name, @device_type, @class_name, @subscribe_key, @channel)
+              @tellframework(@device_id, @device_name, @class_name, @subscribe_key, @channel)
 
             else if device.binary_switch_id? and !!device.binary_switch_id  
               @device_id = device.binary_switch_id
-              @device_type = 'binary_switch'
               @class_name = "WinkBinarySwitch"
-              @tellframework(@device_id, @device_name, @device_type, @class_name, @subscribe_key, @channel)
+              @tellframework(@device_id, @device_name, @class_name, @subscribe_key, @channel)
 
             else if device.shade_id? and !!device.shade_id 
               @device_id = device.shade_id
-              @device_type = 'shade'
               @class_name = "WinkShade"
-              @tellframework(@device_id, @device_name, @device_type, @class_name, @subscribe_key, @channel)
+              @tellframework(@device_id, @device_name, @class_name, @subscribe_key, @channel)
 
           else
             # No name, can't identify
             env.logger.debug ("Discovery: undefined device")     
 
-    tellframework : (device_id, device_name, device_type, class_name, subscribe_key, channel) ->
+    tellframework : (device_id, device_name, class_name, subscribe_key, channel) ->
         config = {
           class: class_name
           device_id: device_id
-          device_type: device_type
           pubnub_channel : channel
           pubnub_subscribe_key : subscribe_key
         }
@@ -141,7 +137,6 @@ module.exports = (env) ->
       @id = @config.id
       @name = @config.name
       @device_id = @config.device_id
-      @device_type = @config.device_type
       @pubnub_channel = @config.pubnub_channel
       @pubnub_subscribe_key = @config.pubnub_subscribe_key
 
@@ -204,7 +199,6 @@ module.exports = (env) ->
       @id = @config.id
       @name = @config.name
       @device_id = @config.device_id
-      @device_type = @config.device_type
       @pubnub_channel = @config.pubnub_channel
       @pubnub_subscribe_key = @config.pubnub_subscribe_key
 
@@ -269,7 +263,6 @@ module.exports = (env) ->
       @id = @config.id
       @name = @config.name
       @device_id = @config.device_id
-      @device_type = @config.device_type
       @pubnub_channel = @config.pubnub_channel
       @pubnub_subscribe_key = @config.pubnub_subscribe_key
 
@@ -375,7 +368,6 @@ module.exports = (env) ->
       @id = @config.id
       @name = @config.name
       @device_id = @config.device_id
-      @device_type = @config.device_type
       @pubnub_channel = @config.pubnub_channel
       @pubnub_subscribe_key = @config.pubnub_subscribe_key
 
