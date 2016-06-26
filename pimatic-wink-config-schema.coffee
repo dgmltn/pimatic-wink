@@ -1,4 +1,5 @@
 # #pimatic-wink configuration options
+# Declare your config option for your plugin here. 
 module.exports = {
   title: "pimatic-wink config options"
   type: "object"
@@ -16,5 +17,8 @@ module.exports = {
       type: "string"
     password:
       description: "wink password"
+      type: "string"
+    auth_token:
+      description: "Oauth token recieved from Wink"
       type: "string"
 }
