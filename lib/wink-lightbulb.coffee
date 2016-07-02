@@ -14,16 +14,17 @@ module.exports = (env) ->
   #pubnub = require 'pubnub'
   PUBNUB = require("pubnub")
  
-  wink = require('./wink-node.js')
+  wink = require('../wink-node.js')
 
   wink_light_bulb = Promise.promisify(wink.light_bulb);
-  wink_light_switch = Promise.promisify(wink.light_switch);
+  wink_switch = Promise.promisify(wink.wink_switch);
 
   class WinkLightBulb extends env.devices.DimmerActuator
     template: "wink-lightbulb"
     @_wink_state
     @_wink_level
     @_plugin
+    @switch_type
 
     constructor: (@config,@plugin) ->
       @id = @config.id
@@ -32,6 +33,7 @@ module.exports = (env) ->
       @pubnub_channel = @config.pubnub_channel
       @pubnub_subscribe_key = @config.pubnub_subscribe_key
       @_plugin = @plugin
+      @switch_type = 'light_bulb'
 
       updateValue = =>
         if @config.interval > 0
@@ -68,8 +70,7 @@ module.exports = (env) ->
       env.logger.debug("changeStateTo "+ @name + " From:" + @_state + " to:"+state)
       assert state is on or state is off
       return Promise.resolve() if state is @_wink_state 
-
-      return wink_light_switch(@_plugin.config.auth_token, @device_id, state) 
+      return wink_switch(@_plugin.config.auth_token, @device_id, state, @switch_type) 
 
     changeDimlevelTo: (dimlevel) ->
       env.logger.debug("changeDimlevelTo "+ @name + " From:" +  @_dimlevel + " to:"+dimlevel)
@@ -79,7 +80,6 @@ module.exports = (env) ->
       assert dimlevel <= 100
       return Promise.resolve() if dimlevel is @_dimlevel
       return Promise.resolve() if dimlevel is @_wink_level
-
       return wink_light_bulb(@_plugin.config.auth_token, @device_id, dimlevel) 
 
     _setDimlevel: (level) =>

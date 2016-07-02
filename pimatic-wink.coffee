@@ -14,14 +14,14 @@ module.exports = (env) ->
   PUBNUB = require("pubnub")
  
   wink = require('./wink-node.js')
-  
-  winklightbulb = require("./wink-lightbulb") env
+
+  winklightbulb = require("./lib/wink-lightbulb") env
+  winkswitch = require("./lib/wink-switch") env
+  winkshade = require("./lib/wink-shade") env
 
   wink_auth_token = Promise.promisify(wink.auth_token);
   wink_device_id_map = Promise.promisify(wink.device_id_map);
-  wink_binary_switch = Promise.promisify(wink.binary_switch);
-  wink_light_bulb = Promise.promisify(wink.light_bulb);
-  wink_light_switch = Promise.promisify(wink.light_switch);
+  wink_switch = Promise.promisify(wink.wink_switch);
   wink_shade = Promise.promisify(wink.shade);
 
   class PimaticWink extends env.plugins.Plugin
@@ -63,7 +63,7 @@ module.exports = (env) ->
 
       @framework.deviceManager.registerDeviceClass("WinkBinarySwitch", {
         configDef: deviceConfigDef.WinkBinarySwitch, 
-        createCallback: (config) => return new WinkBinarySwitch(config)
+        createCallback: (config) => return new winkswitch.WinkBinarySwitch(config, plugin)
       })
 
       @framework.deviceManager.registerDeviceClass("WinkLightBulb", {
@@ -73,12 +73,12 @@ module.exports = (env) ->
 
       @framework.deviceManager.registerDeviceClass("WinkLightSwitch", {
         configDef: deviceConfigDef.WinkLightSwitch, 
-        createCallback: (config) => return new WinkLightSwitch(config)
+        createCallback: (config) => return new winkswitch.WinkLightSwitch(config, plugin)
       })
 
       @framework.deviceManager.registerDeviceClass("WinkShade", {
         configDef: deviceConfigDef.WinkShade, 
-        createCallback: (config) => return new WinkShade(config)
+        createCallback: (config) => return new winkshade.WinkShade(config, plugin)
       })
 
       @framework.on "after init", =>
@@ -140,69 +140,6 @@ module.exports = (env) ->
         @framework.deviceManager.discoveredDevice(
           'pimatic-wink', device_name, config
         )
-    
-  class WinkBinarySwitch extends env.devices.PowerSwitch
-    @_wink_state
-
-    constructor: (@config) ->
-      @id = @config.id
-      @name = @config.name
-      @device_id = @config.device_id
-      @pubnub_channel = @config.pubnub_channel
-      @pubnub_subscribe_key = @config.pubnub_subscribe_key
-
-      updateValue = =>
-        if @config.interval > 0
-          @downloadState().finally( =>
-            @timerId = setTimeout(updateValue, @config.interval) 
-          )
-      super()
-      @initialize()
-
-    destroy: () ->
-        clearTimeout @timerId if @timerId?
-        super()
-  
-    downloadState: () ->
-      return wink_binary_switch(plugin.config.auth_token, @device_id, undefined) 
-        .then( (result) => 
-          @_wink_state = result.powered
-          @_setState(@_wink_state) )
-        .catch( (err) =>
-            env.logger.error("Error getting status from Wink ", err))
-
-    changeStateTo: (state) ->
-      assert state is on or state is off
-      if @_state is state then return Promise.resolve()
-      if @_wink_state is state then return Promise.resolve()
-      return wink_binary_switch(plugin.config.auth_token, @device_id, state)
-        .then( (result) => 
-          @_wink_state = result.powered
-          @_setState(@_wink_state) )
-
-    initialize: ()->
-      plugin.pendingAuth.then( (auth_token) =>
-        env.logger.debug("Intializing " + @name)
-        @subdata = 
-          subscribe_key  : @pubnub_subscribe_key
-
-        @channeldata = 
-          channel  : @pubnub_channel
-
-        pubnub = PUBNUB(@subdata) 
-        pubnub.subscribe(@channeldata, @pncallback.bind(this))
-        @downloadState()
-      )      
-
-    pncallback: (result) ->
-        @body = JSON.parse(result)
-        @desired_state = @body.desired_state
-        @powered = @desired_state.powered
-
-        if @powered?
-          @_wink_state =  @powered
-          env.logger.debug(@name + " Wink Status >> " + @powered)
-          @_setState(@_wink_state)
 
   class WinkShade extends env.devices.ShutterController
 
@@ -266,68 +203,6 @@ module.exports = (env) ->
       else
         @position = 'stopped'
 
-  class WinkLightSwitch extends env.devices.PowerSwitch
-    @_wink_state
-
-    constructor: (@config) ->
-      @id = @config.id
-      @name = @config.name
-      @device_id = @config.device_id
-      @pubnub_channel = @config.pubnub_channel
-      @pubnub_subscribe_key = @config.pubnub_subscribe_key
-
-      updateValue = =>
-        if @config.interval > 0
-          @downloadState().finally( =>
-            @timerId = setTimeout(updateValue, @config.interval) 
-          )
-      super()
-      @initialize()
-
-    destroy: () ->
-        clearTimeout @timerId if @timerId?
-        super()
-  
-    downloadState: () ->
-      return wink_light_switch(plugin.config.auth_token, @device_id, undefined) 
-        .then( (result) => 
-          @_wink_state = result.powered
-          @_setState(@_wink_state) )
-        .catch( (err) =>
-            env.logger.error("Error getting status from Wink ", err))
-
-    changeStateTo: (state) ->
-      assert state is on or state is off
-      if @_state is state then return Promise.resolve()
-      if @_wink_state is state then return Promise.resolve()
-      return wink_light_switch(plugin.config.auth_token, @device_id, state)
-        .then( (result) => 
-          @_wink_state = result.powered
-          @_setState(@_wink_state) )
-
-    initialize: ()->
-      plugin.pendingAuth.then( (auth_token) =>
-        env.logger.debug("Intializing " + @name)
-        @subdata = 
-          subscribe_key  : @pubnub_subscribe_key
-
-        @channeldata = 
-          channel  : @pubnub_channel
-
-        pubnub = PUBNUB(@subdata) 
-        pubnub.subscribe(@channeldata, @pncallback.bind(this))
-        @downloadState()
-      )      
-
-    pncallback: (result) ->
-        @body = JSON.parse(result)
-        @desired_state = @body.desired_state
-        @powered = @desired_state.powered
-
-        if @powered?
-          @_wink_state =  @powered
-          env.logger.debug(@name + " Wink Status >> " + @powered)
-          @_setState(@_wink_state)
 
   # ###Finally
   # Create a instance of my plugin
