@@ -86,11 +86,9 @@ module.exports = (env) ->
 
 
   class WinkLightSwitch extends WinkBinarySwitch
-    #env.devices.PowerSwitch
-    #@_wink_state
 
-    constructor: (@config) ->
-      super(@config)
+    constructor: (@config, @plugin) ->
+      super(@config, @plugin)
       @switch_type = 'light_switch'
 
 
