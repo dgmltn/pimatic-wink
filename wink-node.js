@@ -111,17 +111,26 @@ Wink.prototype.light_bulb = function(auth_token, device_id, brightness, callback
     }   
 };
 
-var switch_types = {
-    binary_switch  : '/binary_switches/',
-    light_switch   : '/light_bulbs/',
-    light_bulb    : '/light_bulbs/'
-};
 
-Wink.prototype.wink_switch = function(auth_token, device_id, powered, switch_type, callback) {
+
+Wink.prototype.wink_switch = function(auth_token, device_id, state, switch_type, callback) {
  
+    var switch_types = {
+        binary_switch  : '/binary_switches/',
+        light_switch   : '/light_bulbs/',
+        light_bulb     : '/light_bulbs/',
+        lock           : '/locks/'
+    }; 
+
+    var state_field = {
+        binary_switch  : 'powered',
+        light_switch   : 'powered',
+        light_bulb     : 'powered',
+        lock           : 'locked'
+    }; 
+
     var path = switch_types[switch_type] + device_id;
- 
-    //console.log(">>>>Sending to Wink wink_switch: ",powered);
+    //console.log(">>>>Sending to Wink wink_switch: ",state);
     var parse_state_callback = function(err, result) {
         if (callback === undefined) {
             return;
@@ -140,14 +149,17 @@ Wink.prototype.wink_switch = function(auth_token, device_id, powered, switch_typ
             callback(e, result);
             return;
         }
-
-        var desired_state = body.data.desired_state;
-        callback(undefined, desired_state);
+        var res = {};
+        res.desired_state = body.data.desired_state;
+        res.last_reading = body.data.last_reading;
+        callback(undefined, res);
     };
 
-    if (powered !== undefined) {
+    if (state !== undefined) {
+        var desired_state = {};
+        desired_state[state_field[switch_type]] = state;
         var put_body = JSON.stringify({
-            'desired_state': { 'powered': !!powered }
+            'desired_state': desired_state
         });
         wink_https(auth_token, 'PUT', path, put_body, parse_state_callback);
     }

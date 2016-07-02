@@ -76,6 +76,12 @@ module.exports = (env) ->
         createCallback: (config) => return new winkswitch.WinkLightSwitch(config, plugin)
       })
 
+      @framework.deviceManager.registerDeviceClass("WinkLock", {
+        configDef: deviceConfigDef.WinkLock, 
+        createCallback: (config) => return new winkswitch.WinkLock(config, plugin)
+      })
+
+
       @framework.deviceManager.registerDeviceClass("WinkShade", {
         configDef: deviceConfigDef.WinkShade, 
         createCallback: (config) => return new winkshade.WinkShade(config, plugin)
@@ -86,7 +92,6 @@ module.exports = (env) ->
         mobileFrontend = @framework.pluginManager.getPlugin 'mobile-frontend'
         if mobileFrontend?
           mobileFrontend.registerAssetFile 'js', "pimatic-wink/app/wink-items.coffee"
-          mobileFrontend.registerAssetFile 'css', "pimatic-wink/app/css/wink-items.css"
           mobileFrontend.registerAssetFile 'html', "pimatic-wink/app/wink-items.jade"
         else
           env.logger.warn "your plugin could not find the mobile-frontend. No gui will be available"
@@ -125,6 +130,10 @@ module.exports = (env) ->
               @class_name = "WinkShade"
               @tellframework(@device_id, @device_name, @class_name, @subscribe_key, @channel)
 
+            else if device.lock_id? and !!device.lock_id 
+              @device_id = device.lock_id
+              @class_name = "WinkLock"
+              @tellframework(@device_id, @device_name, @class_name, @subscribe_key, @channel)
           else
             # No name, can't identify
             env.logger.debug ("Discovery: undefined device")     
@@ -140,69 +149,6 @@ module.exports = (env) ->
         @framework.deviceManager.discoveredDevice(
           'pimatic-wink', device_name, config
         )
-
-  class WinkShade extends env.devices.ShutterController
-
-    constructor: (@config) ->
-      @id = @config.id
-      @name = @config.name
-      @device_id = @config.device_id
-      @pubnub_channel = @config.pubnub_channel
-      @pubnub_subscribe_key = @config.pubnub_subscribe_key
-
-      updateValue = =>
-        if @config.interval > 0
-          @downloadState().finally( =>
-            @timerId = setTimeout(updateValue, @config.interval) 
-          )
-      super()
-      @initialize()
-
-    destroy: () ->
-        clearTimeout @timerId if @timerId?
-        super()
-  
-    downloadState: () ->
-      return wink_shade(plugin.config.auth_token, @device_id, undefined) 
-        .then( (result) => @_setPosition(result) )
-        .catch( (err) =>
-            env.logger.error("Error getting status from Wink ", err))
-
-    moveToPosition: (position) ->
-      assert position in ['up', 'down', 'stopped']
-      return wink_shade(plugin.config.auth_token, @device_id, position) 
-        .then( (result) => @_setPosition(result) )
-        .catch( (err) =>
-            env.logger.error("Error getting status from Wink ", err))
-
-    initialize: ()->
-      plugin.pendingAuth.then( (auth_token) =>
-        env.logger.debug("Intializing " + @name)
-        @subdata = 
-          subscribe_key  : @pubnub_subscribe_key
-
-        @channeldata = 
-          channel  : @pubnub_channel
-
-        pubnub = PUBNUB(@subdata) 
-        pubnub.subscribe(@channeldata, @pncallback.bind(this))
-        @downloadState()
-      )  
-
-    pncallback: (result) ->
-      position_unmap = 
-        1: 'up',
-        0: 'down'
-
-      @body = JSON.parse(result)
-      @desired_state = @body.desired_state
-      @position = position_unmap[@desired_state.position]
-
-      if @powered?
-        @_setPosition(@position)
-      else
-        @position = 'stopped'
-
 
   # ###Finally
   # Create a instance of my plugin

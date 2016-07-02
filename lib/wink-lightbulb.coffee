@@ -27,12 +27,12 @@ module.exports = (env) ->
     @switch_type
 
     constructor: (@config,@plugin) ->
+      @_plugin = @plugin
       @id = @config.id
       @name = @config.name
       @device_id = @config.device_id
       @pubnub_channel = @config.pubnub_channel
       @pubnub_subscribe_key = @config.pubnub_subscribe_key
-      @_plugin = @plugin
       @switch_type = 'light_bulb'
 
       updateValue = =>
@@ -59,7 +59,7 @@ module.exports = (env) ->
 
     downloadState: () ->
       return wink_light_bulb(@_plugin.config.auth_token, @device_id, undefined) 
-         .then( (result) => 
+        .then( (result) => 
           env.logger.debug("downloadState "+@name +  " state:"  + @_state + " dimlevel:"+ @_dimlevel)
           env.logger.debug(result)
           @syncpimatic2wink(result)) 
