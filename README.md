@@ -2,10 +2,11 @@ pimatic-wink
 ============
 
 Pimatic plugin to interface with Wink connected devices. Currently supports the following device types:
- 1. light_bulb
- 2. binary_switch
- 3. shade
- 4. light switch - this a varition on light_bulb and only offers on/off functionality. This will not be added automatically by discovery. If you want to use it, you will have to do it manually. You can change the class for a device added by auto-discovery to `WinkLightBulb` by editing the config.json file.
+ 1. Light Bulbs
+ 2. Binary Switches
+ 3. Shades
+ 4. Locks - only lock/unlock are supported
+ 5. Light Switches - This not a Wink device but, a varition on light_bulb and only offers on/off functionality. This will not be added automatically by discovery. If you want to use it, you will have to do it manually. You can change the class for a device added by auto-discovery to `WinkLightBulb` by editing the config.json file.
 
 This plugin suppports auto-discovery available since pimatic v0.90, and that is the preferred way of adding devices, it will retrieve all the parameters it needs using the Wink API. 
 
@@ -54,6 +55,14 @@ Devices
       "device_id": "718646",                 
       "pubnub_channel": "very_long_string",     
       "pubnub_subscribe_key": "a_string"     
+    },
+    {
+      "id": "my-lock",
+      "class": "WinkLock",
+      "name": "Front Door",
+      "device_id": "404706",                 
+      "pubnub_channel": "very_long_string",     
+      "pubnub_subscribe_key": "a_string" 
     },
     {
       "id": "my-shade",
