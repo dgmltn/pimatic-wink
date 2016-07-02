@@ -5,7 +5,7 @@ Pimatic plugin to interface with Wink connected devices. Currently supports the 
  1. Light Bulbs
  2. Binary Switches
  3. Shades
- 4. Locks - only lock/unlock are supported
+ 4. Locks - only lock/unlock functions are supported
  5. Light Switches - This not a Wink device but, a varition on light_bulb and only offers on/off functionality. This will not be added automatically by discovery. If you want to use it, you will have to do it manually. You can change the class for a device added by auto-discovery to `WinkLightBulb` by editing the config.json file.
 
 This plugin suppports auto-discovery available since pimatic v0.90, and that is the preferred way of adding devices, it will retrieve all the parameters it needs using the Wink API. 
