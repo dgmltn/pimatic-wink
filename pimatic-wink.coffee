@@ -11,10 +11,11 @@ module.exports = (env) ->
   assert = env.require 'cassert'
 
   # Other depencies
-  #pubnub = require 'pubnub'
   PUBNUB = require("pubnub")
  
   wink = require('./wink-node.js')
+  
+  winklightbulb = require("./wink-lightbulb") env
 
   wink_auth_token = Promise.promisify(wink.auth_token);
   wink_device_id_map = Promise.promisify(wink.device_id_map);
@@ -67,7 +68,7 @@ module.exports = (env) ->
 
       @framework.deviceManager.registerDeviceClass("WinkLightBulb", {
         configDef: deviceConfigDef.WinkLightBulb, 
-        createCallback: (config) => return new WinkLightBulb(config)
+        createCallback: (config) => return new winklightbulb.WinkLightBulb(config, plugin)
       })
 
       @framework.deviceManager.registerDeviceClass("WinkLightSwitch", {
@@ -79,6 +80,16 @@ module.exports = (env) ->
         configDef: deviceConfigDef.WinkShade, 
         createCallback: (config) => return new WinkShade(config)
       })
+
+      @framework.on "after init", =>
+        # Check if the mobile-frontent was loaded and get a instance
+        mobileFrontend = @framework.pluginManager.getPlugin 'mobile-frontend'
+        if mobileFrontend?
+          mobileFrontend.registerAssetFile 'js', "pimatic-wink/app/wink-items.coffee"
+          mobileFrontend.registerAssetFile 'css', "pimatic-wink/app/css/wink-items.css"
+          mobileFrontend.registerAssetFile 'html', "pimatic-wink/app/wink-items.jade"
+        else
+          env.logger.warn "your plugin could not find the mobile-frontend. No gui will be available"
 
       @framework.deviceManager.on('discover', (eventData) =>
         @framework.deviceManager.discoverMessage(
@@ -254,112 +265,6 @@ module.exports = (env) ->
         @_setPosition(@position)
       else
         @position = 'stopped'
-
-  class WinkLightBulb extends env.devices.DimmerActuator
-    @_wink_state
-    @_wink_level
-
-    constructor: (@config) ->
-      @id = @config.id
-      @name = @config.name
-      @device_id = @config.device_id
-      @pubnub_channel = @config.pubnub_channel
-      @pubnub_subscribe_key = @config.pubnub_subscribe_key
-
-      updateValue = =>
-        if @config.interval > 0
-          @downloadState().finally( =>
-            @timerId = setTimeout(updateValue, @config.interval) 
-          )
-      super()
-      @initialize()
-
-    destroy: () ->
-        clearTimeout @timerId if @timerId?
-        super()
-  
-    # Returns a promise
-    turnOn: -> 
-      env.logger.debug("turnOn")
-      @changeStateTo on 
-
-    # Retuns a promise
-    turnOff: -> 
-      env.logger.debug("turnOff")
-      @changeDimlevelTo 0 
-
-    downloadState: () ->
-      return wink_light_bulb(plugin.config.auth_token, @device_id, undefined) 
-         .then( (result) => 
-          env.logger.debug("downloadState "+@name +  " state:"  + @_state + " dimlevel:"+ @_dimlevel)
-          env.logger.debug(result)
-          @syncpimatic2wink(result)) 
-        .catch( (err) =>
-          env.logger.error("Error getting status from Wink ", err)) 
-
-    changeStateTo: (state) ->
-      env.logger.debug("changeStateTo "+ @name + " From:" + @_state + " to:"+state)
-      assert state is on or state is off
-      return Promise.resolve() if state is @_wink_state 
-
-      return wink_light_switch(plugin.config.auth_token, @device_id, state) 
-
-    changeDimlevelTo: (dimlevel) ->
-      env.logger.debug("changeDimlevelTo "+ @name + " From:" +  @_dimlevel + " to:"+dimlevel)
-      dimlevel = parseFloat(dimlevel)
-      assert not isNaN(dimlevel)
-      assert dimlevel >= 0
-      assert dimlevel <= 100
-      return Promise.resolve() if dimlevel is @_dimlevel
-      return Promise.resolve() if dimlevel is @_wink_level
-
-      return wink_light_bulb(plugin.config.auth_token, @device_id, dimlevel) 
-
-    _setDimlevel: (level) =>
-      env.logger.debug("_setDimlevel "+@name)
-      level = parseFloat(level)
-      assert(not isNaN(level))
-      assert level >= 0
-      assert level <= 100
-      if @_dimlevel is level then return
-      @_dimlevel = level
-      @emit "dimlevel", level
-      @_setState(level > 0)
-
-    initialize: ()->
-      plugin.pendingAuth.then( (auth_token) =>
-        env.logger.debug("Intializing " + @name)
-        @subdata = 
-          subscribe_key  : @pubnub_subscribe_key
-
-        @channeldata = 
-          channel  : @pubnub_channel
-
-        pubnub = PUBNUB(@subdata) 
-        pubnub.subscribe(@channeldata, @pncallback.bind(this))
-        env.logger.debug("INTIALIZE "+@name +  " state:"  + @_state + " dimlevel:"+ @_dimlevel)
-        @downloadState()
-      )  
-
-    pncallback: (result) ->
-      env.logger.debug("CALLBACK "+@name +  " @state:"  + @_state + " dimlevel:"+ @_dimlevel)
-      @body = JSON.parse(result)
-      @desired_state = @body.desired_state
-      @syncpimatic2wink(@desired_state)
-
-    syncpimatic2wink: (desired_state) ->
-      env.logger.debug("syncpimatic2wink " + desired_state)
-
-      if desired_state.powered?
-        @_wink_state = desired_state.powered
-        env.logger.debug(@name + " Wink Status >> " + @_wink_state)
-
-      if desired_state.brightness? and not isNaN(desired_state.brightness)
-        @_wink_level = desired_state.brightness * 100
-        @dimlevel = @_wink_level
-        @dimlevel = 0 if not @_wink_state
-        env.logger.debug(@name + " Wink Dim Level >> " + @_wink_level)
-        @_setDimlevel(@dimlevel)
 
   class WinkLightSwitch extends env.devices.PowerSwitch
     @_wink_state
