@@ -55,7 +55,7 @@ module.exports = (env) ->
     # Retuns a promise
     turnOff: -> 
       env.logger.debug("turnOff")
-      @changeDimlevelTo 0 
+      @changeStateTo off
 
     downloadState: () ->
       return wink_light_bulb(@_plugin.config.auth_token, @device_id, undefined) 
@@ -91,7 +91,6 @@ module.exports = (env) ->
       if @_dimlevel is level then return
       @_dimlevel = level
       @emit "dimlevel", level
-      @_setState(level > 0)
 
     initialize: ()->
       @_plugin.pendingAuth.then( (auth_token) =>
@@ -120,11 +119,11 @@ module.exports = (env) ->
       if desired_state.powered?
         @_wink_state = desired_state.powered
         env.logger.debug(@name + " Wink Status >> " + @_wink_state)
+        @_setState(@_wink_state)
 
       if desired_state.brightness? and not isNaN(desired_state.brightness)
         @_wink_level = desired_state.brightness * 100
         @dimlevel = @_wink_level
-        @dimlevel = 0 if not @_wink_state
         env.logger.debug(@name + " Wink Dim Level >> " + @_wink_level)
         @_setDimlevel(@dimlevel)
 
