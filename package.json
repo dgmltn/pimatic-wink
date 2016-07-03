@@ -5,6 +5,9 @@
     "main": "pimatic-wink",
     "license": "Apache-2.0",
     "files": [
+        "app",
+        "lib",
+        "LICENSE",
         "README.md",
         "wink-cli.js",
         "wink-node.js",
@@ -19,8 +22,17 @@
         "type": "git",
         "url": "git://github.com/dgmltn/pimatic-wink.git"
     },
+    "contributors": [
+        {
+          "name": "Enis Hoca",
+          "url": "https://github.com/enishoca",
+          "email" : "enishoca@outlook.com"
+        }
+    ],
     "configSchema": "pimatic-wink-config-schema.coffee",
-    "dependencies": { },
+    "dependencies": {
+        "pubnub": ">=3.15.1"
+    },
     "peerDependencies": {
         "pimatic": ">=0.9.0 <1.0.0"
     },
